@@ -34,18 +34,24 @@ class RK6006:
         return f"Model: {self.model}, SN:{self.sn}, FW:{self.fw}"
 
     def _read_register(self, register):
-        try:
-            return self.instrument.read_register(register)
-        except minimalmodbus.NoResponseError:
-            return self._read_register(register)
+        while True:
+            try:
+                return self.instrument.read_register(register)
+            except minimalmodbus.NoResponseError:
+                continue
 
-    def _read_registers(self, start, length):
-        try:
-            return self.instrument.read_registers(start, length)
-        except minimalmodbus.NoResponseError:
-            return self._read_registers(start, length)
-        except minimalmodbus.InvalidResponseError:
-            return self._read_registers(start, length)
+    def _read_registers(self, start, length, chunksize=50):
+        # can only read registers in chunks (max appears to be around 80)
+        if length > chunksize:
+            return self._read_registers(start, chunksize) + self._read_registers(start+chunksize, length-chunksize)
+
+        while True:
+            try:
+                return self.instrument.read_registers(start, length)
+            except minimalmodbus.NoResponseError:
+                continue
+            except minimalmodbus.InvalidResponseError:
+                continue
 
     def _write_register(self, register, value):
         try:
